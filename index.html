@@ -2,53 +2,162 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Chat Privado Persistente</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; }
-        header { background: #075e54; color: white; padding: 15px; text-align: center; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
-        
+        :root {
+            --primary: #075e54;
+            --bg-chat: #e5ddd5;
+            --white: #ffffff;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, sans-serif; 
+            background: var(--bg-chat); 
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh;
+            height: -webkit-fill-available; /* Ajuste para iOS */
+            overflow: hidden;
+        }
+
+        header { 
+            background: var(--primary); 
+            color: white; 
+            padding: 12px 15px; 
+            font-weight: bold; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            z-index: 10;
+            flex-shrink: 0;
+        }
+
         /* Pantalla de Bloqueo */
-        #lock-screen { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #f0f0f0; }
-        .lock-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; }
-        
+        #lock-screen { 
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            background: #f0f2f5; 
+            z-index: 100;
+        }
+        .lock-card { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 15px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+            text-align: center;
+            width: 80%;
+            max-width: 300px;
+        }
+
         /* Área de Chat */
-        #chat-container { display: none; flex-direction: column; flex: 1; overflow: hidden; }
-        #chat { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        #chat-container { 
+            display: none; 
+            flex-direction: column; 
+            flex: 1; 
+            min-height: 0; /* Importante para flex scroll */
+        }
         
-        .msg { padding: 10px 15px; border-radius: 15px; max-width: 80%; word-wrap: break-word; position: relative; }
-        .sent { background: #dcf8c6; align-self: flex-end; border-bottom-right-radius: 2px; }
-        .received { background: #fff; align-self: flex-start; border-bottom-left-radius: 2px; border: 1px solid #ddd; }
+        #chat { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 15px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .msg { 
+            padding: 8px 12px; 
+            border-radius: 12px; 
+            max-width: 85%; 
+            word-wrap: break-word; 
+            position: relative;
+            font-size: 15px;
+            line-height: 1.4;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
         
-        .footer { background: #f0f0f0; padding: 15px; display: flex; gap: 10px; }
-        input { padding: 12px; border-radius: 25px; border: 1px solid #ccc; outline: none; }
-        #msg-input { flex: 1; }
+        .sent { background: #dcf8c6; align-self: flex-end; border-top-right-radius: 2px; }
+        .received { background: var(--white); align-self: flex-start; border-top-left-radius: 2px; }
+
+        .del-btn {
+            color: #999;
+            font-size: 18px;
+            margin-left: 8px;
+            cursor: pointer;
+            float: right;
+            line-height: 1;
+        }
+
+        /* Footer / Input */
+        .footer { 
+            background: #f0f0f0; 
+            padding: 10px 15px; 
+            display: flex; 
+            gap: 10px; 
+            align-items: center;
+            border-top: 1px solid #ddd;
+            flex-shrink: 0;
+        }
         
-        button { background: #075e54; color: white; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; font-weight: bold; }
-        .btn-lock { background: #d9534f; font-size: 12px; padding: 5px 15px; }
+        input { 
+            padding: 12px 18px; 
+            border-radius: 25px; 
+            border: 1px solid #ddd; 
+            outline: none; 
+            font-size: 16px; /* Evita zoom en iOS */
+        }
+        
+        #msg-input { flex: 1; background: white; }
+        
+        button { 
+            background: var(--primary); 
+            color: white; 
+            border: none; 
+            padding: 10px 18px; 
+            border-radius: 25px; 
+            cursor: pointer; 
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+        
+        button:active { opacity: 0.7; }
+        
+        .btn-lock { background: #d9534f; font-size: 12px; padding: 6px 12px; }
+
+        /* Ajuste para teclados móviles */
+        @media (max-width: 600px) {
+            .msg { max-width: 90%; }
+        }
     </style>
 </head>
 <body>
 
 <header>
-    <span>SALA HIELO</span>
-    <button id="lock-btn" class="btn-lock" onclick="bloquearChat()" style="display:none;">Bloquear ahora</button>
+    <span>------------</span>
+    <button id="lock-btn" class="btn-lock" onclick="bloquearChat()" style="display:none;">Bloquear</button>
 </header>
 
 <div id="lock-screen">
     <div class="lock-card">
-        <h3>Acceso Protegido</h3>
-        <input type="password" id="pass-val" placeholder="Palabra clave (te)">
+        <h3>CONSULTA</h3>
+        <input type="password" id="pass-val" placeholder="--" style="width: 80%;">
         <br><br>
-        <button onclick="validarAcceso()">Entrar</button>
+        <button onclick="validarAcceso()" style="width: 100%;">Entrar</button>
     </div>
 </div>
 
 <div id="chat-container">
     <div id="chat"></div>
     <div class="footer">
-        <input type="text" id="msg-input" placeholder="Escribe un mensaje..." onkeypress="if(event.key==='Enter') enviar()">
+        <input type="text" id="msg-input" placeholder="Mensaje..." autocomplete="off">
         <button onclick="enviar()">Enviar</button>
     </div>
 </div>
@@ -59,7 +168,14 @@
     const CLAVE_CIFRADO = "hielo";
     let tiempoInactividad;
 
-    // 1. Validar Palabra Clave
+    // Ajuste dinámico para el teclado móvil
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+            document.body.style.height = window.visualViewport.height + 'px';
+            scrollToBottom();
+        });
+    }
+
     function validarAcceso() {
         const pass = document.getElementById('pass-val').value;
         if (pass.toLowerCase() === CLAVE_ACCESO) {
@@ -73,30 +189,25 @@
         }
     }
 
-    // 2. Bloquear Chat
     function bloquearChat() {
         document.getElementById('lock-screen').style.display = 'flex';
         document.getElementById('chat-container').style.display = 'none';
         document.getElementById('lock-btn').style.display = 'none';
         document.getElementById('pass-val').value = "";
-        document.getElementById('chat').innerHTML = ""; // Limpiar vista por privacidad
+        document.getElementById('chat').innerHTML = "";
     }
 
-    // 3. Temporizador de Auto-bloqueo (5 minutos)
     function resetearTemporizador() {
         clearTimeout(tiempoInactividad);
-        tiempoInactividad = setTimeout(bloquearChat, 5 * 60 * 1000); // 5 minutos
+        tiempoInactividad = setTimeout(bloquearChat, 5 * 60 * 1000);
     }
 
-    // Detectar actividad para resetear el tiempo
-    window.onload = resetearTemporizador;
-    document.onmousemove = resetearTemporizador;
-    document.onkeypress = resetearTemporizador;
+    document.addEventListener('touchstart', resetearTemporizador);
+    document.addEventListener('click', resetearTemporizador);
+    document.addEventListener('keydown', resetearTemporizador);
 
-    // 4. Cargar Historial desde Google Sheets
     async function cargarHistorial() {
         if (document.getElementById('chat-container').style.display === 'none') return;
-        
         try {
             const res = await fetch(GAS_URL);
             const filas = await res.json();
@@ -104,28 +215,26 @@
             chat.innerHTML = ""; 
 
             filas.forEach((fila, index) => {
-                if (index === 0 || !fila[2]) return; // Saltar encabezados o filas vacías
+                if (index === 0 || !fila[2]) return;
                 try {
                     const bytes = CryptoJS.AES.decrypt(fila[2], CLAVE_CIFRADO);
                     const texto = bytes.toString(CryptoJS.enc.Utf8);
-                    if (texto) addMsg(texto, 'received');
+                    if (texto) addMsg(texto, 'received', fila[0]);
                 } catch(e) {}
             });
-        } catch (error) {
-            console.error("Error al cargar:", error);
-        }
+            scrollToBottom();
+        } catch (error) { console.error("Error al cargar:", error); }
     }
 
-    // 5. Enviar Mensaje
     async function enviar() {
         const input = document.getElementById('msg-input');
         const m = input.value;
         if (!m) return;
 
         const cifrado = CryptoJS.AES.encrypt(m, CLAVE_CIFRADO).toString();
-        addMsg(m, 'sent');
+        addMsg(m, 'sent', Date.now());
         input.value = "";
-        resetearTemporizador();
+        scrollToBottom();
 
         await fetch(GAS_URL, {
             method: 'POST',
@@ -137,33 +246,26 @@
     function addMsg(txt, tipo, id) {
         const div = document.createElement('div');
         div.className = `msg ${tipo}`;
-        div.style.position = "relative";
         
-        // Contenido del mensaje
-        const span = document.createElement('span');
-        span.innerText = txt;
-        div.appendChild(span);
+        const content = document.createElement('span');
+        content.innerText = txt;
+        div.appendChild(content);
 
-        // Botón de borrar (Solo si queremos que aparezca en todos)
-        const delBtn = document.createElement('button');
-        delBtn.innerText = "×";
-        delBtn.style = "background:none; border:none; color:red; cursor:pointer; margin-left:10px; font-weight:bold; float:right;";
-        delBtn.onclick = () => borrarMensajeServidor(id, div);
-        
+        const delBtn = document.createElement('span');
+        delBtn.innerHTML = "&times;";
+        delBtn.className = "del-btn";
+        delBtn.onclick = (e) => {
+            e.stopPropagation();
+            borrarMensajeServidor(id, div);
+        };
         div.appendChild(delBtn);
 
-        const chatDiv = document.getElementById('chat');
-        chatDiv.appendChild(div);
-        chatDiv.scrollTop = chatDiv.scrollHeight;
+        document.getElementById('chat').appendChild(div);
     }
 
     async function borrarMensajeServidor(msgId, elementoHtml) {
-        if (!confirm("¿Borrar este mensaje para todos?")) return;
-
-        // Borrar visualmente de inmediato
+        if (!confirm("¿Borrar mensaje?")) return;
         elementoHtml.remove();
-
-        // Avisar a Google Sheets para que borre la fila
         await fetch(GAS_URL, {
             method: 'POST',
             mode: 'no-cors',
@@ -171,39 +273,16 @@
         });
     }
 
-    // Modifica la parte de cargarHistorial para pasar el ID
-    async function cargarHistorial() {
-        if (document.getElementById('chat-container').style.display === 'none') return;
-        
-        try {
-            const res = await fetch(GAS_URL);
-            const filas = await res.json();
-            const chat = document.getElementById('chat');
-            chat.innerHTML = ""; 
-
-            filas.forEach((fila, index) => {
-                if (!fila[2]) return; // Evitar filas vacías
-                try {
-                    const bytes = CryptoJS.AES.decrypt(fila[2], CLAVE_CIFRADO);
-                    const texto = bytes.toString(CryptoJS.enc.Utf8);
-                    // Pasamos fila[0] que ahora es el ID único del mensaje
-                    if (texto) addMsg(texto, 'received', fila[0]);
-                } catch(e) {}
-            });
-        } catch (error) {}
-    }
-    
-
-    function addMsg(txt, tipo) {
-        const div = document.createElement('div');
-        div.className = `msg ${tipo}`;
-        div.innerText = txt;
-        const chatDiv = document.getElementById('chat');
-        chatDiv.appendChild(div);
-        chatDiv.scrollTop = chatDiv.scrollHeight;
+    function scrollToBottom() {
+        const chat = document.getElementById('chat');
+        chat.scrollTop = chat.scrollHeight;
     }
 
-    // Actualizar historial cada 15 segundos automáticamente
+    // Enter para enviar
+    document.getElementById('msg-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') enviar();
+    });
+
     setInterval(cargarHistorial, 15000);
 </script>
 
