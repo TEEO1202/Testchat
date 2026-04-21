@@ -3,288 +3,162 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Chat Privado Persistente</title>
+    <title>Gestor de Notas - Recursos Materiales</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <style>
-        :root {
-            --primary: #075e54;
-            --bg-chat: #e5ddd5;
-            --white: #ffffff;
-        }
-
-        body { 
-            font-family: 'Segoe UI', Tahoma, sans-serif; 
-            background: var(--bg-chat); 
-            margin: 0; 
-            display: flex; 
-            flex-direction: column; 
-            height: 100vh;
-            height: -webkit-fill-available; /* Ajuste para iOS */
-            overflow: hidden;
-        }
-
-        header { 
-            background: var(--primary); 
-            color: white; 
-            padding: 12px 15px; 
-            font-weight: bold; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center;
-            z-index: 10;
-            flex-shrink: 0;
-        }
-
-        /* Pantalla de Bloqueo */
-        #lock-screen { 
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            background: #f0f2f5; 
-            z-index: 100;
-        }
-        .lock-card { 
-            background: white; 
-            padding: 30px; 
-            border-radius: 15px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
-            text-align: center;
-            width: 80%;
-            max-width: 300px;
-        }
-
-        /* Área de Chat */
-        #chat-container { 
-            display: none; 
-            flex-direction: column; 
-            flex: 1; 
-            min-height: 0; /* Importante para flex scroll */
-        }
+        :root { --primary: #2c3e50; --accent: #16a085; --bg: #f8f9fa; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        #chat { 
-            flex: 1; 
-            overflow-y: auto; 
-            padding: 15px; 
-            display: flex; 
-            flex-direction: column; 
-            gap: 12px;
-            -webkit-overflow-scrolling: touch;
-        }
+        /* Interfaz de Notas (Camuflaje) */
+        #notes-interface { flex: 1; display: flex; flex-direction: column; padding: 20px; }
+        header { background: var(--primary); color: white; padding: 12px 20px; font-size: 14px; font-weight: bold; position: fixed; top: 0; width: 100%; z-index: 10; box-sizing: border-box; }
+        .notes-list { margin-top: 50px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .note-item { background: #fff9c4; padding: 10px; border-left: 5px solid #fbc02d; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 13px; color: #333; }
+        .note-input-area { background: white; padding: 15px; border-top: 1px solid #ddd; display: flex; gap: 10px; }
+        .note-input-area input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
 
-        .msg { 
-            padding: 8px 12px; 
-            border-radius: 12px; 
-            max-width: 85%; 
-            word-wrap: break-word; 
-            position: relative;
-            font-size: 15px;
-            line-height: 1.4;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        }
-        
+        /* Interfaz de Chat (Oculta) */
+        #chat-container { display: none; flex-direction: column; flex: 1; background: #e5ddd5; margin-top: 45px; }
+        #chat { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .msg { padding: 10px; border-radius: 12px; max-width: 80%; font-size: 15px; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
         .sent { background: #dcf8c6; align-self: flex-end; border-top-right-radius: 2px; }
-        .received { background: var(--white); align-self: flex-start; border-top-left-radius: 2px; }
-
-        .del-btn {
-            color: #999;
-            font-size: 18px;
-            margin-left: 8px;
-            cursor: pointer;
-            float: right;
-            line-height: 1;
-        }
-
-        /* Footer / Input */
-        .footer { 
-            background: #f0f0f0; 
-            padding: 10px 15px; 
-            display: flex; 
-            gap: 10px; 
-            align-items: center;
-            border-top: 1px solid #ddd;
-            flex-shrink: 0;
-        }
+        .received { background: white; align-self: flex-start; border-top-left-radius: 2px; }
+        .footer-chat { background: #f0f0f0; padding: 10px; display: flex; gap: 10px; border-top: 1px solid #ddd; }
+        .footer-chat input { flex: 1; padding: 12px; border-radius: 25px; border: 1px solid #ccc; font-size: 16px; outline: none; }
+        .btn-send { background: #075e54; color: white; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; font-weight: bold; }
+        .del-btn { color: #999; float: right; cursor: pointer; margin-left: 8px; font-weight: bold; }
         
-        input { 
-            padding: 12px 18px; 
-            border-radius: 25px; 
-            border: 1px solid #ddd; 
-            outline: none; 
-            font-size: 16px; /* Evita zoom en iOS */
-        }
-        
-        #msg-input { flex: 1; background: white; }
-        
-        button { 
-            background: var(--primary); 
-            color: white; 
-            border: none; 
-            padding: 10px 18px; 
-            border-radius: 25px; 
-            cursor: pointer; 
-            font-weight: bold;
-            transition: opacity 0.2s;
-        }
-        
-        button:active { opacity: 0.7; }
-        
-        .btn-lock { background: #d9534f; font-size: 12px; padding: 6px 12px; }
-
-        /* Ajuste para teclados móviles */
-        @media (max-width: 600px) {
-            .msg { max-width: 90%; }
-        }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-<header>
-    <span>------------</span>
-    <button id="lock-btn" class="btn-lock" onclick="bloquearChat()" style="display:none;">Bloquear</button>
-</header>
+<header id="main-header">CONTROL DE PENDIENTES - ÁREA ADMINISTRATIVA</header>
 
-<div id="lock-screen">
-    <div class="lock-card">
-        <h3>CONSULTA</h3>
-        <input type="password" id="pass-val" placeholder="--" style="width: 80%;">
-        <br><br>
-        <button onclick="validarAcceso()" style="width: 100%;">Entrar</button>
+<div id="notes-interface">
+    <div class="notes-list" id="notes-list">
+        <div class="note-item">Revisar stock de toners para oficina central (Pendiente).</div>
+        <div class="note-item">Enviar requisición de hojas tamaño oficio a firma.</div>
+        <div class="note-item">Mantenimiento de fotocopiadora programado para el viernes.</div>
+    </div>
+    <div class="note-input-area">
+        <input type="text" id="fake-input" placeholder="Agregar nota de pendiente..." autocomplete="off">
+        <button onclick="procesarNota()" style="padding:10px; background:var(--accent); color:white; border:none; border-radius:4px;">Guardar</button>
     </div>
 </div>
 
 <div id="chat-container">
     <div id="chat"></div>
-    <div class="footer">
-        <input type="text" id="msg-input" placeholder="Mensaje..." autocomplete="off">
-        <button onclick="enviar()">Enviar</button>
+    <div class="footer-chat">
+        <input type="text" id="msg-input" placeholder="Escribe..." autocomplete="off">
+        <button class="btn-send" onclick="enviar()">Enviar</button>
     </div>
 </div>
 
 <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbw4-8Bea7p19JH9mGw_eiM-2raAvRBXxljtJ6SL_gTrZEqNlJNnfB4AVDzQf4KXaeHU/exec";
-    const CLAVE_ACCESO = "te";
+    const CLAVE_MAESTRA = "te"; // La nota secreta que activa el chat
     const CLAVE_CIFRADO = "hielo";
-    let tiempoInactividad;
+    let chatActivo = false;
+    let timerAutoBloqueo;
 
-    // Ajuste dinámico para el teclado móvil
-    if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', () => {
-            document.body.style.height = window.visualViewport.height + 'px';
-            scrollToBottom();
-        });
-    }
-
-    function validarAcceso() {
-        const pass = document.getElementById('pass-val').value;
-        if (pass.toLowerCase() === CLAVE_ACCESO) {
-            document.getElementById('lock-screen').style.display = 'none';
-            document.getElementById('chat-container').style.display = 'flex';
-            document.getElementById('lock-btn').style.display = 'block';
-            resetearTemporizador();
-            cargarHistorial();
-        } else {
-            alert("Acceso denegado");
+    // Lógica del camuflaje
+    function procesarNota() {
+        const val = document.getElementById('fake-input').value;
+        
+        if (val.toLowerCase() === CLAVE_MAESTRA) {
+            activarModoChat();
+            document.getElementById('fake-input').value = "";
+        } else if (val.trim() !== "") {
+            // Simula guardar una nota real en la pantalla
+            const n = document.createElement('div');
+            n.className = "note-item";
+            n.innerText = val + " (Guardado)";
+            document.getElementById('notes-list').appendChild(n);
+            document.getElementById('fake-input').value = "";
+            document.getElementById('notes-list').scrollTop = document.getElementById('notes-list').scrollHeight;
         }
     }
 
-    function bloquearChat() {
-        document.getElementById('lock-screen').style.display = 'flex';
+    function activarModoChat() {
+        chatActivo = true;
+        document.getElementById('notes-interface').classList.add('hidden');
+        document.getElementById('chat-container').style.display = 'flex';
+        document.getElementById('main-header').innerText = "SISTEMA ACTIVO";
+        document.getElementById('main-header').style.background = "#075e54";
+        
+        cargarHistorial();
+        reiniciarInactividad();
+    }
+
+    function bloquear() {
+        chatActivo = false;
+        document.getElementById('notes-interface').classList.remove('hidden');
         document.getElementById('chat-container').style.display = 'none';
-        document.getElementById('lock-btn').style.display = 'none';
-        document.getElementById('pass-val').value = "";
+        document.getElementById('main-header').innerText = "CONTROL DE PENDIENTES - ÁREA ADMINISTRATIVA";
+        document.getElementById('main-header').style.background = "#2c3e50";
         document.getElementById('chat').innerHTML = "";
     }
 
-    function resetearTemporizador() {
-        clearTimeout(tiempoInactividad);
-        tiempoInactividad = setTimeout(bloquearChat, 5 * 60 * 1000);
-    }
-
-    document.addEventListener('touchstart', resetearTemporizador);
-    document.addEventListener('click', resetearTemporizador);
-    document.addEventListener('keydown', resetearTemporizador);
-
+    // --- FUNCIONES DEL CHAT ---
     async function cargarHistorial() {
-        if (document.getElementById('chat-container').style.display === 'none') return;
+        if (!chatActivo) return;
         try {
-            const res = await fetch(GAS_URL);
+            const res = await fetch(https://script.google.com/macros/s/AKfycbw4-8Bea7p19JH9mGw_eiM-2raAvRBXxljtJ6SL_gTrZEqNlJNnfB4AVDzQf4KXaeHU/exec);
             const filas = await res.json();
-            const chat = document.getElementById('chat');
-            chat.innerHTML = ""; 
-
+            const chatDiv = document.getElementById('chat');
+            chatDiv.innerHTML = ""; 
             filas.forEach((fila, index) => {
                 if (index === 0 || !fila[2]) return;
                 try {
                     const bytes = CryptoJS.AES.decrypt(fila[2], CLAVE_CIFRADO);
                     const texto = bytes.toString(CryptoJS.enc.Utf8);
-                    if (texto) addMsg(texto, 'received', fila[0]);
+                    if (texto) renderMsg(texto, 'received', fila[0]);
                 } catch(e) {}
             });
-            scrollToBottom();
-        } catch (error) { console.error("Error al cargar:", error); }
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+        } catch (e) {}
     }
 
     async function enviar() {
         const input = document.getElementById('msg-input');
         const m = input.value;
         if (!m) return;
-
         const cifrado = CryptoJS.AES.encrypt(m, CLAVE_CIFRADO).toString();
-        addMsg(m, 'sent', Date.now());
+        renderMsg(m, 'sent', Date.now());
         input.value = "";
-        scrollToBottom();
-
-        await fetch(GAS_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            body: JSON.stringify({ user: "Usuario", msg: cifrado })
-        });
+        reiniciarInactividad();
+        await fetch(GAS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ user: "Usuario", msg: cifrado }) });
     }
 
-    function addMsg(txt, tipo, id) {
+    function renderMsg(txt, tipo, id) {
         const div = document.createElement('div');
         div.className = `msg ${tipo}`;
-        
-        const content = document.createElement('span');
-        content.innerText = txt;
-        div.appendChild(content);
-
-        const delBtn = document.createElement('span');
-        delBtn.innerHTML = "&times;";
-        delBtn.className = "del-btn";
-        delBtn.onclick = (e) => {
-            e.stopPropagation();
-            borrarMensajeServidor(id, div);
-        };
-        div.appendChild(delBtn);
-
+        div.innerHTML = `<span>${txt}</span><span class="del-btn" onclick="borrar('${id}', this.parentElement)">&times;</span>`;
         document.getElementById('chat').appendChild(div);
+        document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
     }
 
-    async function borrarMensajeServidor(msgId, elementoHtml) {
-        if (!confirm("¿Borrar mensaje?")) return;
-        elementoHtml.remove();
-        await fetch(GAS_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            body: JSON.stringify({ action: "delete", id: msgId })
-        });
+    async function borrar(msgId, el) {
+        if (!confirm("¿Eliminar registro?")) return;
+        el.remove();
+        await fetch(GAS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: "delete", id: msgId }) });
     }
 
-    function scrollToBottom() {
-        const chat = document.getElementById('chat');
-        chat.scrollTop = chat.scrollHeight;
+    function reiniciarInactividad() {
+        clearTimeout(timerAutoBloqueo);
+        if(chatActivo) timerAutoBloqueo = setTimeout(bloquear, 3 * 60 * 1000); // 3 minutos
     }
 
-    // Enter para enviar
-    document.getElementById('msg-input').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') enviar();
-    });
+    // Listeners
+    document.getElementById('fake-input').addEventListener('keypress', (e) => { if(e.key==='Enter') procesarNota(); });
+    document.getElementById('msg-input').addEventListener('keypress', (e) => { if(e.key==='Enter') enviar(); });
+    document.addEventListener('click', reiniciarInactividad);
 
     setInterval(cargarHistorial, 15000);
 </script>
+</body>
+</html>
 
 </body>
 </html>
