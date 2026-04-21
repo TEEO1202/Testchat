@@ -54,7 +54,7 @@
 </div>
 
 <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbyUGs48sNP_JRhQeDYObeCSWBEgl8lGKW5zDBieatE_AiDLmAt58U5c6-47SGOEd7Xy/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbyLpxHMkjuDyciLH6DpWxSx7tfiEoyPCyp5AcgQ3y0j8dO3AfItV6xV3wakTNbquT0B/exec";
     const CLAVE_ACCESO = "te";
     const CLAVE_CIFRADO = "hielo";
     let tiempoInactividad;
@@ -133,6 +133,66 @@
             body: JSON.stringify({ user: "Usuario", msg: cifrado })
         });
     }
+
+    function addMsg(txt, tipo, id) {
+        const div = document.createElement('div');
+        div.className = `msg ${tipo}`;
+        div.style.position = "relative";
+        
+        // Contenido del mensaje
+        const span = document.createElement('span');
+        span.innerText = txt;
+        div.appendChild(span);
+
+        // Botón de borrar (Solo si queremos que aparezca en todos)
+        const delBtn = document.createElement('button');
+        delBtn.innerText = "×";
+        delBtn.style = "background:none; border:none; color:red; cursor:pointer; margin-left:10px; font-weight:bold; float:right;";
+        delBtn.onclick = () => borrarMensajeServidor(id, div);
+        
+        div.appendChild(delBtn);
+
+        const chatDiv = document.getElementById('chat');
+        chatDiv.appendChild(div);
+        chatDiv.scrollTop = chatDiv.scrollHeight;
+    }
+
+    async function borrarMensajeServidor(msgId, elementoHtml) {
+        if (!confirm("¿Borrar este mensaje para todos?")) return;
+
+        // Borrar visualmente de inmediato
+        elementoHtml.remove();
+
+        // Avisar a Google Sheets para que borre la fila
+        await fetch(GAS_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({ action: "delete", id: msgId })
+        });
+    }
+
+    // Modifica la parte de cargarHistorial para pasar el ID
+    async function cargarHistorial() {
+        if (document.getElementById('chat-container').style.display === 'none') return;
+        
+        try {
+            const res = await fetch(GAS_URL);
+            const filas = await res.json();
+            const chat = document.getElementById('chat');
+            chat.innerHTML = ""; 
+
+            filas.forEach((fila, index) => {
+                if (!fila[2]) return; // Evitar filas vacías
+                try {
+                    const bytes = CryptoJS.AES.decrypt(fila[2], CLAVE_CIFRADO);
+                    const texto = bytes.toString(CryptoJS.enc.Utf8);
+                    // Pasamos fila[0] que ahora es el ID único del mensaje
+                    if (texto) addMsg(texto, 'received', fila[0]);
+                } catch(e) {}
+            });
+        } catch (error) {}
+    }
+    
 
     function addMsg(txt, tipo) {
         const div = document.createElement('div');
