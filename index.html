@@ -6,27 +6,144 @@
     <title>Gestor de Notas - Recursos Materiales</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <style>
-        :root { --primary: #2c3e50; --accent: #16a085; --bg: #f8f9fa; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        :root { --primary: #2c3e50; --accent: #16a085; --bg: #f8f9fa; --chat-bg: #e5ddd5; }
         
-        /* Interfaz de Notas (Camuflaje) */
-        header { background: var(--primary); color: white; padding: 12px 20px; font-size: 14px; font-weight: bold; position: fixed; top: 0; width: 100%; z-index: 10; box-sizing: border-box; }
-        #notes-interface { flex: 1; display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; }
-        .notes-list { margin-top: 50px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 20px; }
-        .note-item { background: #fff9c4; padding: 10px; border-left: 5px solid #fbc02d; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 13px; color: #333; border-radius: 2px; }
-        .note-input-area { background: white; padding: 15px; border-top: 1px solid #ddd; display: flex; gap: 10px; flex-shrink: 0; }
-        .note-input-area input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: var(--bg); 
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; 
+            height: -webkit-fill-available;
+            overflow: hidden; 
+        }
 
-        /* Interfaz de Chat (Oculta) */
-        #chat-container { display: none; flex-direction: column; flex: 1; background: #e5ddd5; margin-top: 45px; }
-        #chat { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { padding: 10px; border-radius: 12px; max-width: 80%; font-size: 15px; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.1); line-height: 1.4; }
+        /* Encabezado Camuflado */
+        header { 
+            background: var(--primary); 
+            color: white; 
+            padding: 12px 20px; 
+            font-size: 13px; 
+            font-weight: bold; 
+            position: fixed; 
+            top: 0; 
+            width: 100%; 
+            z-index: 100; 
+            box-sizing: border-box;
+            transition: background 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Interfaz de Notas (Modo Despiste) */
+        #notes-interface { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            padding: 20px; 
+            box-sizing: border-box; 
+            margin-top: 45px;
+        }
+        .notes-list { 
+            flex: 1; 
+            overflow-y: auto; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px; 
+            padding-bottom: 20px; 
+        }
+        .note-item { 
+            background: #fff9c4; 
+            padding: 12px; 
+            border-left: 5px solid #fbc02d; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08); 
+            font-size: 13px; 
+            color: #444; 
+            border-radius: 2px;
+        }
+        .note-input-area { 
+            background: white; 
+            padding: 15px; 
+            border-top: 1px solid #ddd; 
+            display: flex; 
+            gap: 10px; 
+            flex-shrink: 0; 
+        }
+        .note-input-area input { 
+            flex: 1; 
+            padding: 12px; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+            font-size: 14px; 
+            outline: none;
+        }
+
+        /* Interfaz de Chat (El Secreto) */
+        #chat-container { 
+            display: none; 
+            flex-direction: column; 
+            flex: 1; 
+            background: var(--chat-bg); 
+            margin-top: 45px; 
+            min-height: 0;
+        }
+        #chat { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 15px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; 
+            -webkit-overflow-scrolling: touch;
+        }
+        .msg { 
+            padding: 10px 14px; 
+            border-radius: 12px; 
+            max-width: 80%; 
+            font-size: 15px; 
+            position: relative; 
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1); 
+            line-height: 1.4; 
+        }
         .sent { background: #dcf8c6; align-self: flex-end; border-top-right-radius: 2px; }
         .received { background: white; align-self: flex-start; border-top-left-radius: 2px; }
-        .footer-chat { background: #f0f0f0; padding: 10px; display: flex; gap: 10px; border-top: 1px solid #ddd; flex-shrink: 0; }
-        .footer-chat input { flex: 1; padding: 12px; border-radius: 25px; border: 1px solid #ccc; font-size: 16px; outline: none; }
-        .btn-send { background: #075e54; color: white; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; font-weight: bold; }
-        .del-btn { color: #999; float: right; cursor: pointer; margin-left: 8px; font-weight: bold; font-size: 18px; line-height: 1; }
+        
+        .footer-chat { 
+            background: #f0f0f0; 
+            padding: 10px 15px; 
+            display: flex; 
+            gap: 10px; 
+            border-top: 1px solid #ddd; 
+            flex-shrink: 0; 
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        .footer-chat input { 
+            flex: 1; 
+            padding: 12px 18px; 
+            border-radius: 25px; 
+            border: 1px solid #ccc; 
+            font-size: 16px; 
+            outline: none; 
+            background: white;
+        }
+        .btn-send { 
+            background: #075e54; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 25px; 
+            cursor: pointer; 
+            font-weight: bold; 
+        }
+        .del-btn { 
+            color: #999; 
+            float: right; 
+            cursor: pointer; 
+            margin-left: 10px; 
+            font-weight: bold; 
+            font-size: 18px; 
+        }
         
         .hidden { display: none !important; }
     </style>
@@ -38,39 +155,43 @@
 <div id="notes-interface">
     <div class="notes-list" id="notes-list">
         <div class="note-item">Revisar stock de toners para oficina central (Pendiente).</div>
-        <div class="note-item">Enviar requisición de hojas tamaño oficio a firma.</div>
-        <div class="note-item">Mantenimiento de fotocopiadora programado para el viernes.</div>
+        <div class="note-item">Enviar requisición de hojas tamaño oficio a firma del Director.</div>
+        <div class="note-item">Mantenimiento preventivo de fotocopiadora programado.</div>
+        <div class="note-item">Actualizar inventario de mobiliario en bodega B.</div>
     </div>
     <div class="note-input-area">
-        <input type="text" id="fake-input" placeholder="Agregar nota de pendiente..." autocomplete="off">
-        <button onclick="procesarNota()" style="padding:10px; background:var(--accent); color:white; border:none; border-radius:4px; cursor:pointer;">Guardar</button>
+        <input type="text" id="fake-input" placeholder="Agregar nueva nota administrativa..." autocomplete="off">
+        <button onclick="procesarNota()" style="padding:10px 15px; background:var(--accent); color:white; border:none; border-radius:4px; cursor:pointer;">Añadir</button>
     </div>
 </div>
 
 <div id="chat-container">
     <div id="chat"></div>
     <div class="footer-chat">
-        <input type="text" id="msg-input" placeholder="Escribe..." autocomplete="off">
+        <input type="text" id="msg-input" placeholder="Escribir mensaje..." autocomplete="off">
         <button class="btn-send" onclick="enviar()">Enviar</button>
     </div>
 </div>
 
 <script>
+    // --- CONFIGURACIÓN ---
     const GAS_URL = "https://script.google.com/macros/s/AKfycbw4-8Bea7p19JH9mGw_eiM-2raAvRBXxljtJ6SL_gTrZEqNlJNnfB4AVDzQf4KXaeHU/exec";
     const CLAVE_MAESTRA = "te"; 
     const CLAVE_CIFRADO = "hielo";
     let chatActivo = false;
     let timerAutoBloqueo;
 
+    // --- LÓGICA DE CAMUFLAJE ---
     function procesarNota() {
-        const val = document.getElementById('fake-input').value;
+        const val = document.getElementById('fake-input').value.trim();
         if (val.toLowerCase() === CLAVE_MAESTRA) {
             activarModoChat();
             document.getElementById('fake-input').value = "";
-        } else if (val.trim() !== "") {
+        } else if (val !== "") {
+            // Simular guardado de nota real
             const n = document.createElement('div');
             n.className = "note-item";
-            n.innerText = val + " (Guardado)";
+            n.innerText = val + " (Pendiente)";
             document.getElementById('notes-list').appendChild(n);
             document.getElementById('fake-input').value = "";
             const list = document.getElementById('notes-list');
@@ -82,8 +203,13 @@
         chatActivo = true;
         document.getElementById('notes-interface').classList.add('hidden');
         document.getElementById('chat-container').style.display = 'flex';
-        document.getElementById('main-header').innerText = "SISTEMA ACTIVO";
-        document.getElementById('main-header').style.background = "#075e54";
+        
+        const header = document.getElementById('main-header');
+        header.innerText = "SISTEMA DE GESTIÓN ACTIVO";
+        header.style.background = "#075e54";
+        header.style.cursor = "pointer";
+        header.onclick = bloquear; // Clic en el título para cerrar rápidamente
+        
         cargarHistorial();
         reiniciarInactividad();
     }
@@ -92,19 +218,24 @@
         chatActivo = false;
         document.getElementById('notes-interface').classList.remove('hidden');
         document.getElementById('chat-container').style.display = 'none';
-        document.getElementById('main-header').innerText = "CONTROL DE PENDIENTES - ÁREA ADMINISTRATIVA";
-        document.getElementById('main-header').style.background = "#2c3e50";
+        
+        const header = document.getElementById('main-header');
+        header.innerText = "CONTROL DE PENDIENTES - ÁREA ADMINISTRATIVA";
+        header.style.background = "#2c3e50";
+        header.onclick = null;
+        
         document.getElementById('chat').innerHTML = "";
     }
 
+    // --- LÓGICA DEL CHAT ---
     async function cargarHistorial() {
         if (!chatActivo) return;
         try {
-            // CORRECCIÓN: Usar la constante GAS_URL entre comillas o directamente
             const res = await fetch(GAS_URL);
             const filas = await res.json();
             const chatDiv = document.getElementById('chat');
             chatDiv.innerHTML = ""; 
+            
             filas.forEach((fila, index) => {
                 if (index === 0 || !fila[2]) return;
                 try {
@@ -114,18 +245,24 @@
                 } catch(e) {}
             });
             chatDiv.scrollTop = chatDiv.scrollHeight;
-        } catch (e) { console.error("Error al cargar:", e); }
+        } catch (e) { console.error("Error conexión"); }
     }
 
     async function enviar() {
         const input = document.getElementById('msg-input');
         const m = input.value;
         if (!m) return;
+        
         const cifrado = CryptoJS.AES.encrypt(m, CLAVE_CIFRADO).toString();
         renderMsg(m, 'sent', Date.now());
         input.value = "";
         reiniciarInactividad();
-        await fetch(GAS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ user: "Usuario", msg: cifrado }) });
+
+        await fetch(GAS_URL, { 
+            method: 'POST', 
+            mode: 'no-cors', 
+            body: JSON.stringify({ user: "Usuario", msg: cifrado }) 
+        });
     }
 
     function renderMsg(txt, tipo, id) {
@@ -137,23 +274,39 @@
     }
 
     async function borrar(msgId, el) {
-        if (!confirm("¿Eliminar registro?")) return;
+        if (!confirm("¿Eliminar registro del sistema?")) return;
         el.remove();
-        await fetch(GAS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: "delete", id: msgId }) });
+        await fetch(GAS_URL, { 
+            method: 'POST', 
+            mode: 'no-cors', 
+            body: JSON.stringify({ action: "delete", id: msgId }) 
+        });
     }
 
+    // --- UTILIDADES ---
     function reiniciarInactividad() {
         clearTimeout(timerAutoBloqueo);
-        if(chatActivo) timerAutoBloqueo = setTimeout(bloquear, 3 * 60 * 1000); 
+        if(chatActivo) timerAutoBloqueo = setTimeout(bloquear, 3 * 60 * 1000); // 3 minutos
     }
 
+    // Ajuste dinámico teclado móvil
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+            if (chatActivo) {
+                document.body.style.height = window.visualViewport.height + 'px';
+                document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+            }
+        });
+    }
+
+    // Eventos
     document.getElementById('fake-input').addEventListener('keypress', (e) => { if(e.key==='Enter') procesarNota(); });
     document.getElementById('msg-input').addEventListener('keypress', (e) => { if(e.key==='Enter') enviar(); });
     document.addEventListener('touchstart', reiniciarInactividad);
     document.addEventListener('click', reiniciarInactividad);
 
+    // Actualización automática
     setInterval(cargarHistorial, 15000);
 </script>
 </body>
-</html>
 </html>
