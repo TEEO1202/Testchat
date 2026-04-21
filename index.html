@@ -3,95 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat Privado Permanente</title>
+    <title>Chat Privado - Sala Hielo</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #e5ddd5; margin: 0; display: flex; flex-direction: column; height: 100vh; }
-        header { background: #075e54; color: white; padding: 15px; text-align: center; font-weight: bold; }
+        header { background: #075e54; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 1.2em; }
         #chat { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { padding: 8px 12px; border-radius: 8px; max-width: 80%; word-wrap: break-word; font-size: 15px; }
-        .sent { background: #dcf8c6; align-self: flex-end; border: 1px solid #c0e0a0; }
-        .received { background: #fff; align-self: flex-start; border: 1px solid #ddd; }
-        .footer { background: #f0f0f0; padding: 10px; display: flex; gap: 10px; }
-        input { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #ccc; outline: none; }
-        button { background: #075e54; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; }
-        #status { font-size: 11px; background: #fff3cd; color: #856404; text-align: center; padding: 5px; }
+        .msg { padding: 10px 15px; border-radius: 15px; max-width: 80%; word-wrap: break-word; font-size: 15px; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+        .sent { background: #dcf8c6; align-self: flex-end; border-bottom-right-radius: 2px; }
+        .received { background: #fff; align-self: flex-start; border-bottom-left-radius: 2px; }
+        .footer { background: #f0f0f0; padding: 15px; display: flex; gap: 10px; border-top: 1px solid #ddd; }
+        input { flex: 1; padding: 12px; border-radius: 25px; border: 1px solid #ccc; outline: none; }
+        button { background: #075e54; color: white; border: none; padding: 10px 25px; border-radius: 25px; cursor: pointer; font-weight: bold; }
+        #status { font-size: 12px; background: #fff3cd; color: #856404; text-align: center; padding: 8px; font-weight: 500; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
 <header>SALA: HIELO</header>
-<div id="status">Iniciando conexión...</div>
-<div id="chat"></div>
+<div id="status">Verificando disponibilidad de la sala...</div>
 
-<div class="footer">
-    <input type="text" id="msg" placeholder="Escribe un mensaje..." onkeypress="if(event.key==='Enter') enviar()">
-    <button onclick="enviar()">Enviar</button>
+<div id="lock-screen" class="hidden" style="padding: 20px; text-align: center;">
+    <h3>Sala Protegida</h3>
+    <input type="password" id="input-pass" placeholder="Palabra de acceso (te)">
+    <br><br>
+    <button onclick="intentarAcceso()">Ingresar a la Sala</button>
+</div>
+
+<div id="chat-container" class="hidden" style="display: flex; flex-direction: column; flex: 1;">
+    <div id="chat"></div>
+    <div class="footer">
+        <input type="text" id="msg-input" placeholder="Escribe un mensaje..." onkeypress="if(event.key==='Enter') enviar()">
+        <button onclick="enviar()">Enviar</button>
+    </div>
 </div>
 
 <script>
-    const SALA_ID = "sala-hielo-teeo"; // ID único para ustedes dos
-    const CLAVE = "hielo"; 
-    let peer, conn;
+    const SALA_ID = "sala-hielo-teeo"; // ID fijo para el anfitrión
+    const PASS_ACCESO = "te";          // Palabra para entrar
+    const CLAVE_CHAT = "hielo";        // Clave para encriptar mensajes
+    let peer, conn, esAnfitrion = false;
 
-    // Intentamos ser el "Dueño" de la sala
-    function iniciarPeer() {
+    function iniciar() {
         peer = new Peer(SALA_ID);
 
-        peer.on('open', id => {
-            updateStatus("Esperando al otro usuario...");
+        peer.on('open', () => {
+            esAnfitrion = true;
+            updateStatus("Eres el ANFITRIÓN. Esperando a que alguien use la clave...");
+            mostrarPantallaChat();
         });
 
-        // Si somos el dueño, esperamos a que el otro se conecte
+        // El Anfitrión recibe una conexión
         peer.on('connection', c => {
-            conn = c;
-            conectarEventos();
+            if (conn) {
+                c.close(); // Solo permitimos una persona a la vez
+                return;
+            }
+            
+            c.on('data', data => {
+                // El primer mensaje que recibe el anfitrión debe ser la clave
+                if (!conn && data === PASS_ACCESO) {
+                    conn = c;
+                    vincularEventos();
+                    updateStatus("🟢 Invitado autorizado. Chat iniciado.");
+                } else if (!conn) {
+                    c.send("RECHAZADO");
+                    c.close();
+                }
+            });
         });
 
-        // ERROR: Si el ID ya existe, significa que el otro ya entró primero
         peer.on('error', err => {
             if (err.type === 'unavailable-id') {
-                updateStatus("Sala ocupada, entrando como invitado...");
-                conectarComoInvitado();
-            } else {
-                console.error(err);
+                esAnfitrion = false;
+                updateStatus("Sala ocupada. Por favor, introduce la clave para entrar.");
+                document.getElementById('lock-screen').classList.remove('hidden');
             }
         });
     }
 
-    function conectarComoInvitado() {
-        // Creamos un ID aleatorio para nosotros y nos conectamos a la SALA_ID
-        peer = new Peer(); 
+    function intentarAcceso() {
+        const pass = document.getElementById('input-pass').value;
+        if (pass !== PASS_ACCESO) {
+            alert("Clave incorrecta.");
+            return;
+        }
+
+        updateStatus("Conectando con el anfitrión...");
+        peer = new Peer(); // ID aleatorio para el invitado
         peer.on('open', () => {
-            conn = peer.connect(SALA_ID);
-            conectarEventos();
+            const tempConn = peer.connect(SALA_ID);
+            tempConn.on('open', () => {
+                tempConn.send(PASS_ACCESO); // Enviamos el "apretón de manos"
+                conn = tempConn;
+                vincularEventos();
+                mostrarPantallaChat();
+                updateStatus("🟢 Conectado al anfitrión.");
+            });
+            
+            tempConn.on('data', data => {
+                if (data === "RECHAZADO") {
+                    alert("Acceso denegado por el anfitrión.");
+                    location.reload();
+                }
+            });
         });
     }
 
-    function conectarEventos() {
-        conn.on('open', () => {
-            updateStatus("🟢 En línea");
-            document.getElementById('status').style.background = "#d4edda";
-            document.getElementById('status').style.color = "#155724";
-        });
-
+    function vincularEventos() {
         conn.on('data', data => {
-            const bytes = CryptoJS.AES.decrypt(data, CLAVE);
-            const texto = bytes.toString(CryptoJS.enc.Utf8);
-            addMsg(texto, 'received');
+            if (data === PASS_ACCESO || data === "RECHAZADO") return; // Ignorar handshake
+            try {
+                const bytes = CryptoJS.AES.decrypt(data, CLAVE_CHAT);
+                const texto = bytes.toString(CryptoJS.enc.Utf8);
+                if (texto) addMsg(texto, 'received');
+            } catch(e) {}
         });
 
         conn.on('close', () => {
-            updateStatus("🔴 Desconectado. Refresca para reintentar.");
+            updateStatus("🔴 Conexión cerrada.");
+            conn = null;
         });
     }
 
     function enviar() {
-        const input = document.getElementById('msg');
+        const input = document.getElementById('msg-input');
         const m = input.value;
         if (conn && conn.open && m) {
-            const cifrado = CryptoJS.AES.encrypt(m, CLAVE).toString();
+            const cifrado = CryptoJS.AES.encrypt(m, CLAVE_CHAT).toString();
             conn.send(cifrado);
             addMsg(m, 'sent');
             input.value = "";
@@ -102,17 +143,23 @@
         const div = document.createElement('div');
         div.className = `msg ${tipo}`;
         div.innerText = txt;
-        const chat = document.getElementById('chat');
-        chat.appendChild(div);
-        chat.scrollTop = chat.scrollHeight;
+        document.getElementById('chat').appendChild(div);
+        document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
     }
 
     function updateStatus(txt) {
         document.getElementById('status').innerText = txt;
     }
 
-    iniciarPeer();
+    function mostrarPantallaChat() {
+        document.getElementById('lock-screen').classList.add('hidden');
+        document.getElementById('chat-container').style.display = 'flex';
+    }
+
+    iniciar();
 </script>
 
+</body>
+</html>
 </body>
 </html>
