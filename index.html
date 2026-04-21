@@ -10,23 +10,23 @@
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
         /* Interfaz de Notas (Camuflaje) */
-        #notes-interface { flex: 1; display: flex; flex-direction: column; padding: 20px; }
         header { background: var(--primary); color: white; padding: 12px 20px; font-size: 14px; font-weight: bold; position: fixed; top: 0; width: 100%; z-index: 10; box-sizing: border-box; }
-        .notes-list { margin-top: 50px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .note-item { background: #fff9c4; padding: 10px; border-left: 5px solid #fbc02d; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 13px; color: #333; }
-        .note-input-area { background: white; padding: 15px; border-top: 1px solid #ddd; display: flex; gap: 10px; }
-        .note-input-area input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        #notes-interface { flex: 1; display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; }
+        .notes-list { margin-top: 50px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 20px; }
+        .note-item { background: #fff9c4; padding: 10px; border-left: 5px solid #fbc02d; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 13px; color: #333; border-radius: 2px; }
+        .note-input-area { background: white; padding: 15px; border-top: 1px solid #ddd; display: flex; gap: 10px; flex-shrink: 0; }
+        .note-input-area input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
 
         /* Interfaz de Chat (Oculta) */
         #chat-container { display: none; flex-direction: column; flex: 1; background: #e5ddd5; margin-top: 45px; }
         #chat { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { padding: 10px; border-radius: 12px; max-width: 80%; font-size: 15px; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .msg { padding: 10px; border-radius: 12px; max-width: 80%; font-size: 15px; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.1); line-height: 1.4; }
         .sent { background: #dcf8c6; align-self: flex-end; border-top-right-radius: 2px; }
         .received { background: white; align-self: flex-start; border-top-left-radius: 2px; }
-        .footer-chat { background: #f0f0f0; padding: 10px; display: flex; gap: 10px; border-top: 1px solid #ddd; }
+        .footer-chat { background: #f0f0f0; padding: 10px; display: flex; gap: 10px; border-top: 1px solid #ddd; flex-shrink: 0; }
         .footer-chat input { flex: 1; padding: 12px; border-radius: 25px; border: 1px solid #ccc; font-size: 16px; outline: none; }
         .btn-send { background: #075e54; color: white; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; font-weight: bold; }
-        .del-btn { color: #999; float: right; cursor: pointer; margin-left: 8px; font-weight: bold; }
+        .del-btn { color: #999; float: right; cursor: pointer; margin-left: 8px; font-weight: bold; font-size: 18px; line-height: 1; }
         
         .hidden { display: none !important; }
     </style>
@@ -43,7 +43,7 @@
     </div>
     <div class="note-input-area">
         <input type="text" id="fake-input" placeholder="Agregar nota de pendiente..." autocomplete="off">
-        <button onclick="procesarNota()" style="padding:10px; background:var(--accent); color:white; border:none; border-radius:4px;">Guardar</button>
+        <button onclick="procesarNota()" style="padding:10px; background:var(--accent); color:white; border:none; border-radius:4px; cursor:pointer;">Guardar</button>
     </div>
 </div>
 
@@ -57,26 +57,24 @@
 
 <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbw4-8Bea7p19JH9mGw_eiM-2raAvRBXxljtJ6SL_gTrZEqNlJNnfB4AVDzQf4KXaeHU/exec";
-    const CLAVE_MAESTRA = "te"; // La nota secreta que activa el chat
+    const CLAVE_MAESTRA = "te"; 
     const CLAVE_CIFRADO = "hielo";
     let chatActivo = false;
     let timerAutoBloqueo;
 
-    // Lógica del camuflaje
     function procesarNota() {
         const val = document.getElementById('fake-input').value;
-        
         if (val.toLowerCase() === CLAVE_MAESTRA) {
             activarModoChat();
             document.getElementById('fake-input').value = "";
         } else if (val.trim() !== "") {
-            // Simula guardar una nota real en la pantalla
             const n = document.createElement('div');
             n.className = "note-item";
             n.innerText = val + " (Guardado)";
             document.getElementById('notes-list').appendChild(n);
             document.getElementById('fake-input').value = "";
-            document.getElementById('notes-list').scrollTop = document.getElementById('notes-list').scrollHeight;
+            const list = document.getElementById('notes-list');
+            list.scrollTop = list.scrollHeight;
         }
     }
 
@@ -86,7 +84,6 @@
         document.getElementById('chat-container').style.display = 'flex';
         document.getElementById('main-header').innerText = "SISTEMA ACTIVO";
         document.getElementById('main-header').style.background = "#075e54";
-        
         cargarHistorial();
         reiniciarInactividad();
     }
@@ -100,11 +97,11 @@
         document.getElementById('chat').innerHTML = "";
     }
 
-    // --- FUNCIONES DEL CHAT ---
     async function cargarHistorial() {
         if (!chatActivo) return;
         try {
-            const res = await fetch(https://script.google.com/macros/s/AKfycbw4-8Bea7p19JH9mGw_eiM-2raAvRBXxljtJ6SL_gTrZEqNlJNnfB4AVDzQf4KXaeHU/exec);
+            // CORRECCIÓN: Usar la constante GAS_URL entre comillas o directamente
+            const res = await fetch(GAS_URL);
             const filas = await res.json();
             const chatDiv = document.getElementById('chat');
             chatDiv.innerHTML = ""; 
@@ -117,7 +114,7 @@
                 } catch(e) {}
             });
             chatDiv.scrollTop = chatDiv.scrollHeight;
-        } catch (e) {}
+        } catch (e) { console.error("Error al cargar:", e); }
     }
 
     async function enviar() {
@@ -147,18 +144,16 @@
 
     function reiniciarInactividad() {
         clearTimeout(timerAutoBloqueo);
-        if(chatActivo) timerAutoBloqueo = setTimeout(bloquear, 3 * 60 * 1000); // 3 minutos
+        if(chatActivo) timerAutoBloqueo = setTimeout(bloquear, 3 * 60 * 1000); 
     }
 
-    // Listeners
     document.getElementById('fake-input').addEventListener('keypress', (e) => { if(e.key==='Enter') procesarNota(); });
     document.getElementById('msg-input').addEventListener('keypress', (e) => { if(e.key==='Enter') enviar(); });
+    document.addEventListener('touchstart', reiniciarInactividad);
     document.addEventListener('click', reiniciarInactividad);
 
     setInterval(cargarHistorial, 15000);
 </script>
 </body>
 </html>
-
-</body>
 </html>
